@@ -41,7 +41,7 @@ rich_club_coeff <- function(g, k=1, weighted=FALSE) {
     return(list(phi=NaN, graph=make_empty_graph(), Nk=0, Ek=0))
   } else {
     rich.club.nodes <- order(degs)[(Nv - Nk + 1):Nv]
-    rich.club.graph <- induced.subgraph(g, rich.club.nodes)
+    rich.club.graph <- induced_subgraph(g, rich.club.nodes)
     Ek <- ecount(rich.club.graph)
 
     if (isTRUE(weighted)) {
@@ -54,6 +54,39 @@ rich_club_coeff <- function(g, k=1, weighted=FALSE) {
 
     return(list(phi=phi, graph=rich.club.graph, Nk=Nk, Ek=Ek))
   }
+}
+
+#' Rich club coefficient for all degrees in a graph
+#'
+#' \code{rich_club_all} is a wrapper for \code{\link{rich_club_coeff}} that
+#' calculates the rich-club coefficient for all degrees present in the graph. It
+#' returns a \code{data.table} with the coefficients and vertex and edge counts
+#' for each successive rich club.
+#' @export
+#' @return \code{\link{rich_club_all}} - a \code{data.table} with components:
+#'   \item{k}{A vector of all vertex degrees present in the original graph}
+#'   \item{phi}{The rich-club coefficient}
+#'   \item{Nk}{The number of vertices in the rich club for each successive
+#'     \emph{k}}
+#'   \item{Ek}{The number of edges in the rich club for each successive
+#'     \emph{k}}
+#'
+#' @aliases rich_club_all
+#' @rdname rich_club
+
+rich_club_all <- function(g, weighted=FALSE) {
+  stopifnot(is_igraph(g))
+  if ('degree' %in% vertex_attr_names(g)) {
+    k <- V(g)$degree
+  } else {
+    k <- degree(g)
+  }
+  R <- lapply(1:max(k), function(x) rich_club_coeff(g, x, weighted))
+  phi <- vapply(R, with, numeric(1), phi)
+  Nk <- vapply(R, with, numeric(1), Nk)
+  Ek <- vapply(R, with, numeric(1), Ek)
+  dt.rich <- data.table(k=1:max(k), phi=phi, Nk=Nk, Ek=Ek)
+  return(dt.rich)
 }
 
 #' Calculate the normalized rich club coefficient
@@ -96,6 +129,12 @@ rich_club_coeff <- function(g, k=1, weighted=FALSE) {
 rich_club_norm <- function(g, N=1e2, rand=NULL, ...) {
   k <- orig <- p <- p.fdr <- NULL
   stopifnot(is_igraph(g))
+  if ('degree' %in% vertex_attr_names(g)) {
+    degs <- V(g)$degree
+  } else {
+    degs <- degree(g)
+  }
+  if (!'rich' %in% graph_attr_names(g)) g$rich <- rich_club_all(g)
   if (is.null(rand)) {
     rand <- sim.rand.graph.par(g, N, ...)
   } else {
@@ -106,7 +145,7 @@ rich_club_norm <- function(g, N=1e2, rand=NULL, ...) {
   }
 
   phi.rand <- t(sapply(rand, function(x) x$rich$phi))
-  max.deg <- max(V(g)$degree)
+  max.deg <- max(degs)
   DT <- data.table(k=rep(seq_len(max.deg), each=N),
                    rand=c(phi.rand),
                    orig=rep(g$rich$phi, each=N))
@@ -116,7 +155,11 @@ rich_club_norm <- function(g, N=1e2, rand=NULL, ...) {
   dt.phi[, p.fdr := p.adjust(p, 'fdr')]
   dt.phi[, rand := NULL]
   dt.phi$rand <- DT[, mean(rand), by=k]$V1
-  dt.phi$density <- g$density
+  if ('density' %in% graph_attr_names(g)) {
+    dt.phi$density <- g$density
+  } else {
+    dt.phi$density <- graph.density(g)
+  }
   if ('threshold' %in% graph_attr_names(g)) dt.phi$threshold <- g$threshold
   if ('Group' %in% graph_attr_names(g)) dt.phi$Group <- g$Group
   if (!is.null(g$name)) dt.phi$Study.ID <- g$name
@@ -202,7 +245,7 @@ rich_club_attrs <- function(g, deg.range=NULL, adj.vsize=FALSE) {
 #' vertices in the graph.
 #'
 #' @export
-#' @return \code{\link{rich_core}} - a data frame with columns:
+#' @return \code{\link{rich_core}} - a data table with columns:
 #'   \item{density}{The density of the graph.}
 #'   \item{rank}{The rank of the boundary for the rich core.}
 #'   \item{k.r}{The degree of the vertex at the boundary.}
@@ -221,15 +264,16 @@ rich_core <- function(g) {
   } else {
     degs <- degree(g)
   }
+  degs <- as.integer(degs)
   dens <- ifelse('density' %in% graph_attr_names(g), g$density, graph.density(g))
   Nv <- vcount(g)
 
   vorder <- order(degs, decreasing=TRUE)
-  kplus <- sapply(seq_len(Nv), function(x)
-                  length(E(g)[vorder[x] %--% which(degs > degs[vorder[x]])]))
+  kplus <- vapply(seq_len(Nv), function(x)
+                  length(E(g)[vorder[x] %--% which(degs > degs[vorder[x]])]), integer(1))
 
   r <- max(which(kplus == max(kplus)))
   k.r <- degs[vorder][r]
   core.size <- r / Nv
-  return(data.frame(density=dens, rank=r, k.r=k.r, core.size=core.size))
+  return(data.table(density=dens, rank=r, k.r=k.r, core.size=core.size))
 }

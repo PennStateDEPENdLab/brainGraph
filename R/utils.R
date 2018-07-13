@@ -224,7 +224,7 @@ set_edge_color <- function(g, name, memb) {
 
 #' Subset graphs based on a given logical condition
 #'
-#' \code{subset_graphs} will subset a given graph based on the given logical
+#' \code{subset_graph} will subset a given graph based on the given logical
 #' condition(s). This can be a "simple" logical equation, or can include
 #' combinations of \emph{AND} and \emph{OR} (i.e., \code{&} and \code{|}).
 #'
@@ -259,7 +259,7 @@ subset_graph <- function(g, subgraph) {
   }
 
   # Handle when logical expressions are separated by parentheses
-  if (isTRUE(grepl('\\(.*\\)', subgraph))) {
+  if (isTRUE(grepl('\\(.*\\&.*\\)', subgraph)) || isTRUE(grepl('\\(.*\\|.*\\)', subgraph))) {
     subs <- strsplit(subgraph, split='\\)\\s\\&\\s\\(')[[1]]
     subs <- as.list(gsub('^\\(|\\)$|^\\s+|\\s+$', '', subs))
     cond.strings <- sapply(subs, get_cond_string)

@@ -132,7 +132,7 @@ make_graphs_perm <- function(densities, resids, inds, groups) {
   corrs <- lapply(unique(groups), function(x)
                   corr.matrix(resids[which(groups[inds] == x)],
                               densities=densities, rand=TRUE))
-  lapply(corrs, function(x)
+  sapply(corrs, lapply, function(x)
          apply(x$r.thresh, 3, graph_from_adjacency_matrix, mode='undirected', diag=F))
 }
 
@@ -201,19 +201,6 @@ permute_other_foreach <- function(perms, densities, resids, groups, .function) {
     g <- make_graphs_perm(densities, resids, perms[i, ], groups)
     .function(g, densities)
   }
-}
-
-#' @inheritParams brainGraph_permute
-#' @export
-#' @rdname brainGraph_permute
-permute.group <- function(densities, resids, N=5e3, perms=NULL,
-                               level=c('graph', 'vertex', 'lobe', 'other'),
-                               measure=c('btwn.cent', 'degree', 'E.nodal', 'ev.cent',
-                                         'knn', 'transitivity', 'vulnerability'),
-                               atlas=NULL, .function=NULL) {
-  .Deprecated('brainGraph_permute')
-  brainGraph_permute(densities, resids, N=N, perms=perms, level=level,
-                     measure=measure, atlas=atlas, .function=.function)
 }
 
 #==============================================================================
