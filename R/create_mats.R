@@ -173,12 +173,20 @@ create_mats <- function(A.files, modality=c('dti', 'fmri'),
       }
 
       # Back to a list of arrays for all subjects
-      A.norm.sub <-
-        lapply(seq_along(mat.thresh), function(z)
-               lapply(seq_along(inds), function(x)
-                      array(sapply(inds[[x]], function(y)
-                                   ifelse(A.inds[[z]][[x]] == 1, A.norm[, , y], 0)),
-                            dim=dim(A.norm[, , inds[[x]]]))))
+      A.norm.sub <- lapply(seq_along(mat.thresh), function(z) {
+          lapply(seq_along(inds), function(x) {
+            array(sapply(inds[[x]], function(y) {
+              #in case of sub.thresh = 0, ensure we are propagating the thresholded matrix... this is a hack for now
+              if (sub.thresh==0) {
+                m <- A.norm[,,y]*(A.norm[,,y] > mat.thresh[z])
+              } else {
+                m <- A.norm[,,y] #allow through connection weight regardless of its magnitude if it matches the group similarity bar
+              }
+              ifelse(A.inds[[z]][[x]] == 1, m, 0)
+            }), dim=dim(A.norm[, , inds[[x]] ]))
+          })
+        })
+      
       A.norm.sub <- lapply(A.norm.sub, function(x) do.call(abind, x))
 
       # Re-order A.norm.sub so that it matches the input files, A, A.norm, etc.
