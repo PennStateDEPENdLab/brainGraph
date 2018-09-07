@@ -30,11 +30,7 @@
 
 rich_club_coeff <- function(g, k=1, weighted=FALSE) {
   stopifnot(is_igraph(g))
-  if ('degree' %in% vertex_attr_names(g)) {
-    degs <- V(g)$degree
-  } else {
-    degs <- degree(g)
-  }
+  degs <- check_degree(g)
   Nv <- vcount(g)
   Nk <- sum(degs > k)
   if (Nk == 0) {
@@ -76,11 +72,7 @@ rich_club_coeff <- function(g, k=1, weighted=FALSE) {
 
 rich_club_all <- function(g, weighted=FALSE) {
   stopifnot(is_igraph(g))
-  if ('degree' %in% vertex_attr_names(g)) {
-    k <- V(g)$degree
-  } else {
-    k <- degree(g)
-  }
+  k <- check_degree(g)
   R <- lapply(1:max(k), function(x) rich_club_coeff(g, x, weighted))
   phi <- vapply(R, with, numeric(1), phi)
   Nk <- vapply(R, with, numeric(1), Nk)
@@ -129,11 +121,7 @@ rich_club_all <- function(g, weighted=FALSE) {
 rich_club_norm <- function(g, N=1e2, rand=NULL, ...) {
   k <- orig <- p <- p.fdr <- NULL
   stopifnot(is_igraph(g))
-  if ('degree' %in% vertex_attr_names(g)) {
-    degs <- V(g)$degree
-  } else {
-    degs <- degree(g)
-  }
+  degs <- check_degree(g)
   if (!'rich' %in% graph_attr_names(g)) g$rich <- rich_club_all(g)
   if (is.null(rand)) {
     rand <- sim.rand.graph.par(g, N, ...)
@@ -244,12 +232,20 @@ rich_club_attrs <- function(g, deg.range=NULL, adj.vsize=FALSE) {
 #' corresponds to that rank, and the core size relative to the total number of
 #' vertices in the graph.
 #'
+#' For weighted graphs, the degree is substituted by a normalized weight:
+#' \deqn{ceiling(A / w_{min})}
+#' where \eqn{w_{min}} is the minimum weight (that is greater than 0), and
+#' \eqn{ceiling()} is the \emph{ceiling} function that rounds up to the nearest
+#' integer.
+#'
+#' @importFrom Matrix colSums
 #' @export
 #' @return \code{\link{rich_core}} - a data table with columns:
 #'   \item{density}{The density of the graph.}
 #'   \item{rank}{The rank of the boundary for the rich core.}
-#'   \item{k.r}{The degree of the vertex at the boundary.}
+#'   \item{k.r}{The degree/strength of the vertex at the boundary.}
 #'   \item{core.size}{The size of the core relative to the graph size.}
+#'   \item{weighted}{Whether or not weights were used}
 #'
 #' @aliases rich_core
 #' @rdname rich_club
@@ -257,23 +253,22 @@ rich_club_attrs <- function(g, deg.range=NULL, adj.vsize=FALSE) {
 #' @references Ma A & Mondragon R.J. (2015) \emph{Rich-cores in networks}. PLoS
 #'   One, 10(3): e0119678. doi: 10.1371/journal.pone.0119678
 
-rich_core <- function(g) {
+rich_core <- function(g, weighted=FALSE) {
   stopifnot(is_igraph(g))
-  if ('degree' %in% vertex_attr_names(g)) {
-    degs <- V(g)$degree
+  if (isTRUE(weighted)) {
+    A <- as_adj(g, names=FALSE, attr='weight')
+    w_min <- min(summary(A)$x)
+    A <- ceiling(A / w_min)
   } else {
-    degs <- degree(g)
+    A <- as_adj(g, names=FALSE, sparse=FALSE)
   }
-  degs <- as.integer(degs)
-  dens <- ifelse('density' %in% graph_attr_names(g), g$density, graph.density(g))
-  Nv <- vcount(g)
-
+  degs <- colSums(A)
   vorder <- order(degs, decreasing=TRUE)
-  kplus <- vapply(seq_len(Nv), function(x)
-                  length(E(g)[vorder[x] %--% which(degs > degs[vorder[x]])]), integer(1))
+  kplus <- vapply(vorder, function(x) sum(A[x, which(degs > degs[x])]), double(1))
 
+  dens <- ifelse('density' %in% graph_attr_names(g), g$density, graph.density(g))
   r <- max(which(kplus == max(kplus)))
   k.r <- degs[vorder][r]
-  core.size <- r / Nv
-  return(data.table(density=dens, rank=r, k.r=k.r, core.size=core.size))
+  core.size <- r / ncol(A)
+  return(data.table(density=dens, rank=r, k.r=k.r, core.size=core.size, weighted=weighted))
 }

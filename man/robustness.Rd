@@ -4,8 +4,8 @@
 \alias{robustness}
 \title{Analysis of network robustness}
 \usage{
-robustness(g, type = c("vertex", "edge"), measure = c("btwn.cent", "degree",
-  "random"), N = 1000)
+robustness(g, type = c("vertex", "edge"), measure = c("btwn.cent",
+  "degree", "random"), N = 1000)
 }
 \arguments{
 \item{g}{An \code{igraph} graph object}
@@ -20,8 +20,13 @@ choose 'random' (default: \code{btwn.cent})}
 (default: \code{1e3})}
 }
 \value{
-Numeric vector representing the ratio of maximal component size after
-each removal to the observed graph's maximal component size
+Data table with elements:
+  \item{type}{Character string describing the type of analysis performed}
+  \item{measure}{The input argument \code{measure}}
+  \item{comp.pct}{Numeric vector of the ratio of maximal component size after
+    each removal to the observed graph's maximal component size}
+  \item{removed.pct}{Numeric vector of the ratio of vertices/edges removed}
+  \item{Group}{Character string indicating the subject group, if applicable}
 }
 \description{
 This function performs a "targeted attack" of a graph or a "random failure"

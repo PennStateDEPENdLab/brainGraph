@@ -52,6 +52,58 @@ auc_diff <- function(x, y) {
   }
 }
 
+#' Check for edge weights
+#'
+#' \code{check_weights} is a helper function for dealing with edge weights that
+#' get passed to different \code{igraph} functions.
+#'
+#' If \code{weights=NULL} and the graph has a \code{'weight'} attribute, that
+#' will be returned. If \code{weights=NA}, then that is returned.
+#' @keywords internal
+
+check_weights <- function(g, weights) {
+  if (is.null(weights) && 'weight' %in% edge_attr_names(g)) {
+    weights <- NULL
+  } else {
+    if (!is.null(weights) && any(!is.na(weights))) {
+      weights <- as.numeric(weights)
+    } else {
+      weights <- NA
+    }
+  }
+  return(weights)
+}
+
+#' Check for presence of a degree attribute
+#'
+#' Helper function to check if \code{degree} is a vertex attribute of the input
+#' graph. Returns a numeric vector of the degree values.
+#' @keywords internal
+
+check_degree <- function(g) {
+  if ('degree' %in% vertex_attr_names(g)) {
+    x <- V(g)$degree
+  } else {
+    x <- degree(g)
+  }
+  return(x)
+}
+
+#' Check for presence of a strength attribute
+#'
+#' Helper function to check if \code{strength} is a vertex attribute of the
+#' input graph. Returns a numeric vector of the strength values.
+#' @keywords internal
+
+check_strength <- function(g) {
+  if ('strength' %in% vertex_attr_names(g)) {
+    x <- V(g)$strength
+  } else {
+    x <- strength(g)
+  }
+  return(x)
+}
+
 #' Calculate coefficient of variation
 #'
 #' Calculates the \emph{coefficient of variation}, defined as
@@ -147,6 +199,19 @@ delete_all_attr <- function(g, keep.names=FALSE) {
   for (att in vattrs) g <- delete_vertex_attr(g, att)
 
   return(g)
+}
+
+#' Symmetrize a matrix with the mean of off-diagonal elements
+#'
+#' \code{symm_mean} returns a symmetric matrix in which the off-diagonal
+#' elements \eqn{A[i, j]} and \eqn{A[j, i]} are equal to the mean of the values
+#' in the input matrix.
+#' @param A Numeric matrix
+#' @keywords internal
+#' @return Numeric matrix
+
+symm_mean <- function(A) {
+  0.5 * (A + t(A))
 }
 
 #' Apply a rotation matrix to a set of points

@@ -1,3 +1,56 @@
+# brainGraph 2.6.0
+
+2018-09-04
+
+## Bug fix
+* Fixed bug in `count_homologous` that affected a subset of atlases
+    * Performance is modestly improved (approx. 2-3x faster)
+
+## New functions/features
+* `count_inter` replaces `count_interlobar`; the new function calculates inter- and intra-group edge counts, where a group of vertices can be a *lobe*, *hemisphere*, *network* (for the `dosenbach160` atlas), or *class* (for the `destrieux` atlases)
+    * The return object is now more informative; the function returns a matrix of all inter- and intra-group edge counts, in addition to a data.table containing a summary (that matches the output of previous versions)
+* `rich_core` now calculates the rich core for weighted networks
+    * In addition, the function runs *considerably* faster:
+        - for smaller sparse graphs, it is ~40-80x faster
+        - for larger dense graphs, it is more than 2,000x faster
+* `robustness` now returns a data.table containing much more information (in addition to the max. connected component ratio)
+    * This makes plotting outputs simpler; see Chapter 14 of the *User Guide*
+    * When `type='edge'`, the function is about 2-3x faster than previous versions
+
+## Minor changes
+* `plot.mtpc`: the stats displayed in the caption have been "transposed", such that `S.crit` and `A.crit` are in the top row
+
+
+# brainGraph 2.5.0
+
+2018-09-01
+
+## Bug fix
+* Fixed regression bug in `NBS` (introduced by `v2.0.0`) which only occurred if `alternative='less'` when calculating the minimum statistic of permuted networks
+
+## Minor changes
+* Updated code that symmetrizes matrices:
+    * Introduced new function, `symm_mean`, that more quickly symmetrizes a matrix about the diagonal by assigining `mean(c(A[i, j], A[j, i]))` to the off-diagonal elements
+    * Uses `pmin` and `pmax` for symmetrizing matrices based on the off-diagonal minimum and maximum, respectively
+* Optimized code in a few functions for faster execution:
+    * `sim.rand.graph.clust` is about 2x faster due to improvement in the `choose.edges` helper function
+    * `centr_lev` and `edge_asymmetry` are also faster
+
+
+# brainGraph 2.4.0
+
+2018-07-21
+
+## New features
+* `hubness`: new function for determining which vertices are hubs
+* `set_brainGraph_attr`
+    * New argument `clust.method` lets the user choose which clustering (community detection) method to use.
+        1. The default is still the `louvain` algorithm.
+        2. If you select `spinglass`, but the graph is unconnected, then `louvain` is used instead.
+        3. If there are any negative edge weights, and you choose anything other than `walktrap` or `spinglass`, the `walktrap`  method is used.
+    * Now calculates `num.hubs` using the new `hubness` function, and calculates separate values for weighted and unweighted networks
+
+
 # brainGraph 2.3.4
 
 2018-07-06

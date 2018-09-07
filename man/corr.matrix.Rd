@@ -4,8 +4,9 @@
 \alias{corr.matrix}
 \title{Calculate correlation matrix and threshold}
 \usage{
-corr.matrix(resids, densities, thresholds = NULL, what = c("resids", "raw"),
-  exclude.reg = NULL, type = c("pearson", "spearman"), rand = FALSE)
+corr.matrix(resids, densities, thresholds = NULL, what = c("resids",
+  "raw"), exclude.reg = NULL, type = c("pearson", "spearman"),
+  rand = FALSE)
 }
 \arguments{
 \item{resids}{An object of class \code{brainGraph_resids} (the output from
@@ -68,13 +69,12 @@ corrs <- corr.matrix(myResids, densities=densities)))
 \code{\link[Hmisc]{rcorr}}
 
 Other Structural covariance network functions: \code{\link{IndividualContributions}},
-  \code{\link{brainGraph_boot}},
+  \code{\link{Residuals}}, \code{\link{brainGraph_boot}},
   \code{\link{brainGraph_init}},
   \code{\link{brainGraph_permute}},
-  \code{\link{get.resid}},
-  \code{\link{plot.brainGraph_resids}},
   \code{\link{plot_volumetric}}
 }
 \author{
 Christopher G. Watson, \email{cgwatson@bu.edu}
 }
+\concept{Structural covariance network functions}
