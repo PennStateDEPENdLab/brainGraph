@@ -80,33 +80,39 @@ set_brainGraph_attr <- function(g, atlas=NULL, rand=FALSE, use.parallel=TRUE, A=
                                 clust.method='louvain', ...) {
   name <- NULL
   stopifnot(is_igraph(g))
-  clust.funs <- ls('package:igraph')[grep('cluster_', ls('package:igraph'))]
-  clust.funs <- gsub('cluster_', '', clust.funs)
-  if (!clust.method %in% clust.funs) {
-    stop('Invalid clustering method! You must choose from the following:\n', paste(clust.funs, collapse='\n'))
+  if (clust.method != "apriori") {    
+    clust.funs <- ls('package:igraph')[grep('cluster_', ls('package:igraph'))]
+    clust.funs <- gsub('cluster_', '', clust.funs)
+    if (!clust.method %in% clust.funs) {
+      stop('Invalid clustering method! You must choose from the following:\n', paste(clust.funs, collapse='\n'))
+    }
+
+    # Handle different cases for different community detection methods
+    if (clust.method == 'spinglass' & !is.connected(g)) {
+      warning('Invalid clustering method for an unconnected graph; using "louvain".')
+      clust.method <- 'louvain'
+    }
+    g$clust.method <- clust.method
+    if (clust.method %in% c('edge_betweenness', 'fast_greedy', 'walktrap')) {
+      comm <- eval(parse(text=paste0('cluster_', clust.method, '(g, weights=NULL)')))
+    } else if (clust.method == 'infomap') {
+      comm <- cluster_infomap(g, e.weights=NULL)
+    } else {
+      comm <- eval(parse(text=paste0('cluster_', clust.method, '(g, weights=NA)')))
+    }
+  } else {
+    stopifnot("community" %in% vertex_attr_names(g))
+    comm <- make_clusters(g, membership=V(g)$community, algorithm = "apriori", modularity=TRUE)
   }
+  
+  g$mod <- max(comm$modularity)
 
   if (!'degree' %in% vertex_attr_names(g)) V(g)$degree <- degree(g)
   g$Cp <- transitivity(g, type='localaverage')
   g$Lp <- mean_distance(g)
   g$rich <- rich_club_all(g)
   g$E.global <- efficiency(g, 'global', weights=NA)
-
-  # Handle different cases for different community detection methods
-  if (clust.method == 'spinglass' & !is.connected(g)) {
-    warning('Invalid clustering method for an unconnected graph; using "louvain".')
-    clust.method <- 'louvain'
-  }
-  g$clust.method <- clust.method
-  if (clust.method %in% c('edge_betweenness', 'fast_greedy', 'walktrap')) {
-    comm <- eval(parse(text=paste0('cluster_', clust.method, '(g, weights=NULL)')))
-  } else if (clust.method == 'infomap') {
-    comm <- cluster_infomap(g, e.weights=NULL)
-  } else {
-    comm <- eval(parse(text=paste0('cluster_', clust.method, '(g, weights=NA)')))
-  }
-  g$mod <- max(comm$modularity)
-
+  
   if (!isTRUE(rand)) {
     # Graph-level attributes
     #-----------------------------------------------------------------------------
@@ -125,19 +131,25 @@ set_brainGraph_attr <- function(g, atlas=NULL, rand=FALSE, use.parallel=TRUE, A=
 
     if (is_weighted(g)) {
       xfm.type <- match.arg(xfm.type)
-      # Handle different cases for different community detection methods
-      if (any(E(g)$weight < 0) & !clust.method %in% c('spinglass', 'walktrap')) {
-        warning('Invalid clustering method for negative edge weights; using "walktrap".')
-        clust.method <- 'walktrap'
-      }
-      g$clust.method.wt <- clust.method
-      if (clust.method == 'edge_betweenness') {
-        g <- xfm.weights(g, xfm.type)
-        comm.wt <- cluster_edge_betweenness(g)
-        g <- xfm.weights(g, xfm.type, invert=TRUE)
+
+      if (clust.method == "apriori") {
+        comm.wt <- comm #just use object created above since we are not computing communities with and without weights
       } else {
-        comm.wt <- eval(parse(text=paste0('cluster_', clust.method, '(g)')))
+        # Handle different cases for different community detection methods
+        if (any(E(g)$weight < 0) & !clust.method %in% c('spinglass', 'walktrap')) {
+          warning('Invalid clustering method for negative edge weights; using "walktrap".')
+          clust.method <- 'walktrap'
+        }
+        g$clust.method.wt <- clust.method
+        if (clust.method == 'edge_betweenness') {
+          g <- xfm.weights(g, xfm.type)
+          comm.wt <- cluster_edge_betweenness(g)
+          g <- xfm.weights(g, xfm.type, invert=TRUE)
+        } else {
+          comm.wt <- eval(parse(text=paste0('cluster_', clust.method, '(g)')))
+        }
       }
+      
       V(g)$strength <- graph.strength(g)
       g$strength <- mean(V(g)$strength)
       V(g)$knn.wt <- graph.knn(g)$knn
@@ -155,8 +167,7 @@ set_brainGraph_attr <- function(g, atlas=NULL, rand=FALSE, use.parallel=TRUE, A=
 
       # Need to convert weights for distance measures
       g <- xfm.weights(g, xfm.type)
-      V(g)$E.local.wt <- efficiency(g, type='local',
-                                    use.parallel=use.parallel, A=A)
+      V(g)$E.local.wt <- efficiency(g, type='local', use.parallel=use.parallel, A=A)
       g$E.local.wt <- mean(V(g)$E.local.wt)
       V(g)$E.nodal.wt <- efficiency(g, 'nodal')
       g$E.global.wt <- mean(V(g)$E.nodal.wt)
